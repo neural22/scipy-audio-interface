@@ -142,9 +142,9 @@ class EllipticHigh(DigitalFilter):
 class EllipticBandPass(DigitalFilter):
 
     def create_filter(self):
-        self.description = 'Elliptic Band Pass Filter:' + str(self.start) + '-' + str(self.end)v
+        self.description = 'Elliptic Band Pass Filter:' + str(self.start) + '-' + str(self.end)
         self.filter_type = 'bandpass'
-        if if not self.no_nyq:
+        if not self.no_nyq:
             nyq = 0.5 * self.fs
             normal_cutoff_start = self.start / nyq
             normal_cutoff_end = self.end / nyq
