@@ -1,10 +1,9 @@
-__author__ = 'neural22'
+__author__ = 'aloriga'
 
 from scipy import signal
 import matplotlib.pyplot as plt
 import numpy as np
 
-#Plot data result with matplot lib
 def plot_result(data, output=None):
     plt.subplot(2, 1, 2)
     plt.plot(data, 'b-', label='data')
@@ -54,6 +53,7 @@ class DigitalFilter:
         plt.title('Digital filter frequency response')
         ax1 = fig.add_subplot(111)
         plt.plot(w, 20 * np.log10(abs(h)), 'b')
+        plt.ylim([-150, 10])
         plt.ylabel('Amplitude [dB]', color='b')
         plt.xlabel('Frequency [rad/sample]')
         # plot lines -40dB
@@ -108,7 +108,8 @@ class TestFilter:
         else:
             output = f.apply(data)
         plot_result(output)
-        
+
+## FILTERS DESIGN
 ## Common IIR Filters
 
 class EllipticLow(DigitalFilter):
@@ -242,3 +243,47 @@ class FIRBandPassFilter(DigitalFilter):
         normal_cutoff_start = self.start / nyq
         normal_cutoff_end = self.end / nyq
         return signal.firwin(self.order+1, [normal_cutoff_start, normal_cutoff_end], pass_zero=False), [1.0]
+
+## MULTIRATE FILTER BANK
+class FilterBank:
+    
+    # filters: dictionary, key filter_name: filters 
+    def __init__(self, filters, sampling_fs=44100):
+        # check if filters are DigitalFilter objects
+        assert reduce(lambda x, y: x and y, [isinstance(filters[f], DigitalFilter) for f in filters])
+        self.filters = filters
+        self.sampling_fs = sampling_fs
+       
+    def apply(self, initial_data, resample=False):
+        return self._apply_function(initial_data, resample, 'apply')
+       
+    def apply_forward_backward(self, initial_data, resample=False):
+        return self._apply_function(initial_data, resample, 'apply_forward_backward') 
+        
+    def _apply_function(self, initial_data, resample, function):
+        output = {}
+        output_resampled = {}
+        nan_errors = []
+        for f in self.filters:
+            decimate_factor = self.sampling_fs/self.filters[f].fs
+            data = signal.decimate(initial_data, decimate_factor)
+            # apply function
+            output[f] = getattr(self.filters[f], function)(data)
+            # normalize output
+            output[f] = output[f]/max(output[f])
+            if resample:
+                # resample with FFT, it can be slow!
+                output_resampled[f] = signal.resample(output[f], len(initial_data))
+            if np.isnan(output[f]).any():
+                print f
+                nan_errors.append(f)
+        if nan_errors:
+            print 'Error Occurred: filters return NAN', nan_errors
+            return {}
+        else:
+            print 'DONE!'
+            return output_resampled if resample else output
+        
+        
+        
+    
