@@ -1,4 +1,4 @@
-# scipy-interface
+# scipy interface for audio applications
 This project allows to manage the scipy functions with the objects, project is designed for audio application. 
 
 Requisites:
