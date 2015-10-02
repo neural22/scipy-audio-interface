@@ -3,6 +3,8 @@ __author__ = 'aloriga'
 from scipy import signal
 import matplotlib.pyplot as plt
 import numpy as np
+import pickle
+
 
 def plot_result(data, output=None):
     plt.subplot(2, 1, 2)
@@ -13,7 +15,8 @@ def plot_result(data, output=None):
     plt.legend()
     plt.subplots_adjust(hspace=0.35)
     plt.show()
-    
+
+
 # Abstract class to create digital filters with a common interface
 # All parameters should be passed via kwargs
 class DigitalFilter:
@@ -31,16 +34,27 @@ class DigitalFilter:
         self.description = 'Digital Filter'
         self.num, self.den = self.create_filter()
 
-    # it return filter if form of (numerator, denominator)
     def create_filter(self):
+        """
+        Create filter
+        :return: tuple (numerator, denominator)
+        """
         return 0, 1
 
-    # Apply filter to data, return the list with the new values
     def apply(self, data):
+        """
+        Apply filter to data
+        :param data: array to apply the filter
+        :return: array with new values
+        """
         return signal.lfilter(self.num, self.den, data)
-    
-    # Apply filter to data with forward-backward filter for linear phase, return the list with the new values
+
     def apply_forward_backward(self, data):
+        """
+        Apply filter to data with forward-backward filter
+        :param data: array to apply the filter
+        :return: array with new values
+        """
         return signal.filtfilt(self.num, self.den, data)
 
     def compute_freq_response(self):
@@ -48,6 +62,11 @@ class DigitalFilter:
 
     # Plot the response in frequency
     def plot(self, print_phase=False):
+        """
+        Plot the frequency response of the DigitalFilter
+        :param print_phase: boolean, if true phase response is plotted
+        :return:
+        """
         w, h = self.compute_freq_response()
         fig = plt.figure()
         plt.title('Digital filter frequency response')
@@ -68,50 +87,31 @@ class DigitalFilter:
             plt.axis('tight')
         plt.show()
 
-# Test object
-class TestFilter:
+    def save(self, path):
+        """
+        Serialize DigitalFilter to the file
+        :param path: file name
+        :return:
+        """
+        file_to_write = open(path, 'w')
+        pickle.dump(self, file_to_write)
+        file_to_write.close()
 
-    def __init__(self, time):
-        self.T = time
-        self.n = 0
-        self.t = None
-        self.data = None
-        self.output = 0
+    @staticmethod
+    def load(path):
+        """
+        Return a DigitalFilter obj from file
+        :param path: file name
+        :return: DigitalFilter
+        """
+        file_to_load = open(path, 'r')
+        filter_obj = pickle.load(file_to_load)
+        file_to_load.close()
+        return filter_obj
 
-    # Test the filter f with the function sin(pi * e^t)
-    # chk_bf: if True apply_forward_backward is used, for linear phase
-    def test_filter(self, f, chk_bf=False):
-        # total number of samples
-        self.n = int(self.T * f.fs)
-        self.t = np.linspace(0, self.T, self.n, endpoint=False)
-        self.data = np.sin(np.pi * np.e**(self.t))
-        if chk_bf:
-            self.output = f.apply_forward_backward(self.data)
-        else:
-            self.output = f.apply(self.data)
-        plot_result(self.data, self.output)
 
-    # Test the filter f applying data, plot the result in the same graphic
-    def test_filter_with_data(self, f, data, chk_bf=False):
-        if chk_bf:
-            output = f.apply_forward_backward(data)
-        else:
-            output = f.apply(data)
-        plot_result(data, output)
-    
-    # Test the filter f applying data, plot the result in the same graphic + plot an other graphics with only the result
-    # (data scaled)
-    def test_filter_with_data_splitted(self, f, data, chk_bf=False):
-        self.test_filter_with_data(f, data)
-        if chk_bf:
-            output = f.apply_forward_backward(data)
-        else:
-            output = f.apply(data)
-        plot_result(output)
-
-## FILTERS DESIGN
-## Common IIR Filters
-
+# FILTERS DESIGN
+# Common IIR Filters
 class EllipticLow(DigitalFilter):
 
     def create_filter(self):
@@ -189,7 +189,8 @@ class ButterworthHigh(DigitalFilter):
         else:
             normal_cutoff = self.end
         return signal.butter(self.order, normal_cutoff, self.filter_type)
-    
+
+
 class ButterworthBandPass(DigitalFilter):
 
     def create_filter(self):
@@ -203,6 +204,7 @@ class ButterworthBandPass(DigitalFilter):
             normal_cutoff_start = self.start
             normal_cutoff_end = self.end
         return signal.butter(self.order, (normal_cutoff_start, normal_cutoff_end), self.filter_type)
+
 
 class ChebyshevBandPass(DigitalFilter):
 
@@ -218,6 +220,7 @@ class ChebyshevBandPass(DigitalFilter):
             normal_cutoff_end = self.end
         return signal.cheby1(self.order, self.rp, (normal_cutoff_start, normal_cutoff_end), self.filter_type)
 
+
 # FIR Filters
 class FIRLowPassFilter(DigitalFilter):
     def create_filter(self):
@@ -227,6 +230,7 @@ class FIRLowPassFilter(DigitalFilter):
         normal_cutoff_start = self.start / nyq
         return signal.firwin(self.order+1, normal_cutoff_start), [1.0]    
 
+
 class FIRHighPassFilter(DigitalFilter):
     def create_filter(self):
         self.description = 'FIR High Pass Filter: ' + str(self.end)
@@ -234,7 +238,8 @@ class FIRHighPassFilter(DigitalFilter):
         nyq = 0.5 * self.fs
         normal_cutoff_end = self.end / nyq
         return signal.firwin(self.order+1, normal_cutoff_end, pass_zero=False), [1.0]
-    
+
+
 class FIRBandPassFilter(DigitalFilter):
     def create_filter(self):
         self.description = 'FIR Band Pass Filter: ' + str(self.start) + '-' + str(self.end)
@@ -244,20 +249,37 @@ class FIRBandPassFilter(DigitalFilter):
         normal_cutoff_end = self.end / nyq
         return signal.firwin(self.order+1, [normal_cutoff_start, normal_cutoff_end], pass_zero=False), [1.0]
 
-## MULTIRATE FILTER BANK
+
+# MULTIRATE FILTER BANK
 class FilterBank:
-    
-    # filters: dictionary, key filter_name: filters 
+
     def __init__(self, filters, sampling_fs=44100):
+        """
+        :param filters: dictionary, key: filter name, value: DigitalFilter
+        :param sampling_fs: sampling frequency
+        :return:
+        """
         # check if filters are DigitalFilter objects
         assert reduce(lambda x, y: x and y, [isinstance(filters[f], DigitalFilter) for f in filters])
         self.filters = filters
         self.sampling_fs = sampling_fs
        
     def apply(self, initial_data, resample=False):
+        """
+        Apply all filters to data
+        :param initial_data: array to apply the filter
+        :param resample: boolean, if True resample method is applied. See multi-rate filtering
+        :return: data processed
+        """
         return self._apply_function(initial_data, resample, 'apply')
        
     def apply_forward_backward(self, initial_data, resample=False):
+        """
+        Apply all filters to data with backward-forward method
+        :param initial_data: array to apply the filter
+        :param resample: boolean, if True resample method is applied. See multi-rate filtering
+        :return: data processed
+        """
         return self._apply_function(initial_data, resample, 'apply_forward_backward') 
         
     def _apply_function(self, initial_data, resample, function):
