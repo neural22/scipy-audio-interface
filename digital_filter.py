@@ -3,8 +3,8 @@ __author__ = 'aloriga'
 from scipy import signal
 import matplotlib.pyplot as plt
 import numpy as np
-import pickle
-
+#import pickle
+from utils import SerializableObject
 
 def plot_result(data, output=None):
     plt.subplot(2, 1, 2)
@@ -19,7 +19,7 @@ def plot_result(data, output=None):
 
 # Abstract class to create digital filters with a common interface
 # All parameters should be passed via kwargs
-class DigitalFilter:
+class DigitalFilter(SerializableObject):
 
     def __init__(self, **kwargs):
         self.order = kwargs.get('order', 1)
@@ -86,28 +86,6 @@ class DigitalFilter:
             plt.grid()
             plt.axis('tight')
         plt.show()
-
-    def save(self, path):
-        """
-        Serialize DigitalFilter to the file
-        :param path: file name
-        :return:
-        """
-        file_to_write = open(path, 'w')
-        pickle.dump(self, file_to_write)
-        file_to_write.close()
-
-    @staticmethod
-    def load(path):
-        """
-        Return a DigitalFilter obj from file
-        :param path: file name
-        :return: DigitalFilter
-        """
-        file_to_load = open(path, 'r')
-        filter_obj = pickle.load(file_to_load)
-        file_to_load.close()
-        return filter_obj
 
 
 # FILTERS DESIGN
@@ -251,7 +229,7 @@ class FIRBandPassFilter(DigitalFilter):
 
 
 # MULTIRATE FILTER BANK
-class FilterBank:
+class FilterBank(SerializableObject):
 
     def __init__(self, filters, sampling_fs=44100):
         """
